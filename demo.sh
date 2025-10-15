@@ -63,6 +63,10 @@ else
     echo -e "${GREEN}✓ Dependencies already installed${NC}\n"
 fi
 
+# Initialize main context if needed
+echo -e "${YELLOW}Initializing main context in registry...${NC}"
+dual --service api context create main 4000 2>/dev/null || echo -e "${GREEN}✓ Main context already exists${NC}\n"
+
 # Step 1: Create dev worktree
 echo -e "${BLUE}Step 1: Creating 'dev' worktree${NC}"
 echo "Command: dual --service api create dev"
