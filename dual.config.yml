@@ -3,13 +3,20 @@ version: 1
 services:
   api:
     path: apps/api
+    envFile: apps/api/.env
   web:
     path: apps/web
+    envFile: apps/web/.env
   worker:
     path: apps/worker
+    envFile: apps/worker/.env
 
 worktrees:
   path: ./worktrees
 
 env:
   base: .env.base
+
+hooks:
+  postWorktreeCreate:
+    - port-remap.sh
