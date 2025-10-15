@@ -66,10 +66,16 @@ fi
 # Step 1: Create dev worktree
 echo -e "${BLUE}Step 1: Creating 'dev' worktree${NC}"
 echo "Command: dual create dev"
-if dual create dev 2>/dev/null || true; then
+if dual create dev 2>/dev/null; then
     echo -e "${GREEN}✓ Dev worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Dev worktree may already exist${NC}\n"
+fi
+
+# Verify worktree exists before continuing
+if [ ! -d worktrees/dev ]; then
+    echo -e "${RED}Error: Failed to create dev worktree${NC}"
+    exit 1
 fi
 
 # Step 2: Set global environment variables
@@ -103,10 +109,16 @@ cd ../..
 # Step 4: Create feature-auth worktree
 echo -e "${BLUE}Step 4: Creating 'feature-auth' worktree with different env${NC}"
 echo "Command: dual create feature-auth"
-if dual create feature-auth 2>/dev/null || true; then
+if dual create feature-auth 2>/dev/null; then
     echo -e "${GREEN}✓ Feature-auth worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Feature-auth worktree may already exist${NC}\n"
+fi
+
+# Verify worktree exists before continuing
+if [ ! -d worktrees/feature-auth ]; then
+    echo -e "${RED}Error: Failed to create feature-auth worktree${NC}"
+    exit 1
 fi
 
 cd worktrees/feature-auth
@@ -124,10 +136,16 @@ cd ../..
 # Step 5: Create feature-payments worktree
 echo -e "${BLUE}Step 5: Creating 'feature-payments' worktree with different env${NC}"
 echo "Command: dual create feature-payments"
-if dual create feature-payments 2>/dev/null || true; then
+if dual create feature-payments 2>/dev/null; then
     echo -e "${GREEN}✓ Feature-payments worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Feature-payments worktree may already exist${NC}\n"
+fi
+
+# Verify worktree exists before continuing
+if [ ! -d worktrees/feature-payments ]; then
+    echo -e "${RED}Error: Failed to create feature-payments worktree${NC}"
+    exit 1
 fi
 
 cd worktrees/feature-payments
