@@ -58,6 +58,15 @@ This allows you to:
 - `dual` CLI installed and in your PATH
 - Git configured with user name and email
 
+**Note**: This example works best when cloned as a standalone repository:
+
+```bash
+git clone https://github.com/lightfastai/dual-env-remapping-example.git
+cd dual-env-remapping-example
+```
+
+If you're viewing this as a git submodule within the main dual repository, navigate to the `examples/env-remapping` directory and follow the manual usage instructions below.
+
 ### Run the Demo
 
 ```bash
