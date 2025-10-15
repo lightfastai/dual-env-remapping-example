@@ -69,18 +69,19 @@ dual --service api context create main --base-port 4000 2>/dev/null || echo -e "
 
 # Step 1: Create dev worktree
 echo -e "${BLUE}Step 1: Creating 'dev' worktree${NC}"
-echo "Command: dual --service api create dev"
-if dual --service api create dev 2>/dev/null; then
+echo "Command: git worktree add worktrees/dev -b dev"
+if [ ! -d worktrees/dev ]; then
+    mkdir -p worktrees
+    git worktree add worktrees/dev -b dev 2>/dev/null || git worktree add worktrees/dev dev 2>/dev/null
     echo -e "${GREEN}✓ Dev worktree created${NC}\n"
 else
-    echo -e "${YELLOW}⚠ Dev worktree may already exist${NC}\n"
+    echo -e "${YELLOW}⚠ Dev worktree already exists${NC}\n"
 fi
 
-# Verify worktree exists before continuing
-if [ ! -d worktrees/dev ]; then
-    echo -e "${RED}Error: Failed to create dev worktree${NC}"
-    exit 1
-fi
+# Register context with dual
+cd worktrees/dev
+dual --service api context create dev --base-port 4100 2>/dev/null || echo -e "${YELLOW}⚠ Context already registered${NC}"
+cd ../..
 
 # Step 2: Set global environment variables
 echo -e "${BLUE}Step 2: Setting global environment variables in dev context${NC}"
@@ -112,20 +113,17 @@ cd ../..
 
 # Step 4: Create feature-auth worktree
 echo -e "${BLUE}Step 4: Creating 'feature-auth' worktree with different env${NC}"
-echo "Command: dual --service api create feature-auth"
-if dual --service api create feature-auth 2>/dev/null; then
+echo "Command: git worktree add worktrees/feature-auth -b feature-auth"
+if [ ! -d worktrees/feature-auth ]; then
+    git worktree add worktrees/feature-auth -b feature-auth 2>/dev/null || git worktree add worktrees/feature-auth feature-auth 2>/dev/null
     echo -e "${GREEN}✓ Feature-auth worktree created${NC}\n"
 else
-    echo -e "${YELLOW}⚠ Feature-auth worktree may already exist${NC}\n"
+    echo -e "${YELLOW}⚠ Feature-auth worktree already exists${NC}\n"
 fi
 
-# Verify worktree exists before continuing
-if [ ! -d worktrees/feature-auth ]; then
-    echo -e "${RED}Error: Failed to create feature-auth worktree${NC}"
-    exit 1
-fi
-
+# Register context with dual and set env vars
 cd worktrees/feature-auth
+dual --service api context create feature-auth --base-port 4200 2>/dev/null || echo -e "${YELLOW}⚠ Context already registered${NC}"
 
 echo "Command: dual env set DATABASE_URL 'postgres://localhost/auth_db'"
 dual env set DATABASE_URL "postgres://localhost/auth_db"
@@ -139,20 +137,17 @@ cd ../..
 
 # Step 5: Create feature-payments worktree
 echo -e "${BLUE}Step 5: Creating 'feature-payments' worktree with different env${NC}"
-echo "Command: dual --service api create feature-payments"
-if dual --service api create feature-payments 2>/dev/null; then
+echo "Command: git worktree add worktrees/feature-payments -b feature-payments"
+if [ ! -d worktrees/feature-payments ]; then
+    git worktree add worktrees/feature-payments -b feature-payments 2>/dev/null || git worktree add worktrees/feature-payments feature-payments 2>/dev/null
     echo -e "${GREEN}✓ Feature-payments worktree created${NC}\n"
 else
-    echo -e "${YELLOW}⚠ Feature-payments worktree may already exist${NC}\n"
+    echo -e "${YELLOW}⚠ Feature-payments worktree already exists${NC}\n"
 fi
 
-# Verify worktree exists before continuing
-if [ ! -d worktrees/feature-payments ]; then
-    echo -e "${RED}Error: Failed to create feature-payments worktree${NC}"
-    exit 1
-fi
-
+# Register context with dual and set env vars
 cd worktrees/feature-payments
+dual --service api context create feature-payments --base-port 4300 2>/dev/null || echo -e "${YELLOW}⚠ Context already registered${NC}"
 
 echo "Command: dual env set DATABASE_URL 'postgres://localhost/payments_db'"
 dual env set DATABASE_URL "postgres://localhost/payments_db"
@@ -297,9 +292,19 @@ if [ "$CLEANUP" = true ]; then
     echo -e "${YELLOW}Cleaning up...${NC}"
 
     # Delete worktrees
-    dual delete dev 2>/dev/null || true
-    dual delete feature-auth 2>/dev/null || true
-    dual delete feature-payments 2>/dev/null || true
+    git worktree remove worktrees/dev 2>/dev/null || true
+    git worktree remove worktrees/feature-auth 2>/dev/null || true
+    git worktree remove worktrees/feature-payments 2>/dev/null || true
+
+    # Delete branches
+    git branch -D dev 2>/dev/null || true
+    git branch -D feature-auth 2>/dev/null || true
+    git branch -D feature-payments 2>/dev/null || true
+
+    # Delete contexts from registry
+    dual context delete dev 2>/dev/null || true
+    dual context delete feature-auth 2>/dev/null || true
+    dual context delete feature-payments 2>/dev/null || true
 
     # Remove worktrees directory if empty
     rmdir worktrees 2>/dev/null || true
