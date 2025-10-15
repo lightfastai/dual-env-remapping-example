@@ -1,0 +1,15 @@
+version: 1
+
+services:
+  api:
+    path: apps/api
+  web:
+    path: apps/web
+  worker:
+    path: apps/worker
+
+worktrees:
+  path: ./worktrees
+
+env:
+  base: .env.base

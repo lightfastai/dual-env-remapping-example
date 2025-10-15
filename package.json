@@ -1,0 +1,22 @@
+{
+  "name": "dual-env-remapping-example",
+  "version": "1.0.0",
+  "description": "Complete example demonstrating dual's environment remapping with worktrees",
+  "scripts": {
+    "install-all": "npm install && npm install --prefix apps/web && npm install --prefix apps/api && npm install --prefix apps/worker",
+    "demo": "./demo.sh",
+    "demo:cleanup": "./demo.sh --cleanup",
+    "demo:servers": "./demo.sh --start-servers"
+  },
+  "keywords": [
+    "dual",
+    "environment",
+    "worktree",
+    "port-management",
+    "development"
+  ],
+  "author": "lightfastai",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
