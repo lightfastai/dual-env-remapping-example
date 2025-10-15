@@ -65,8 +65,8 @@ fi
 
 # Step 1: Create dev worktree
 echo -e "${BLUE}Step 1: Creating 'dev' worktree${NC}"
-echo "Command: dual create dev"
-if dual create dev 2>/dev/null; then
+echo "Command: dual --service api create dev"
+if dual --service api create dev 2>/dev/null; then
     echo -e "${GREEN}✓ Dev worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Dev worktree may already exist${NC}\n"
@@ -108,8 +108,8 @@ cd ../..
 
 # Step 4: Create feature-auth worktree
 echo -e "${BLUE}Step 4: Creating 'feature-auth' worktree with different env${NC}"
-echo "Command: dual create feature-auth"
-if dual create feature-auth 2>/dev/null; then
+echo "Command: dual --service api create feature-auth"
+if dual --service api create feature-auth 2>/dev/null; then
     echo -e "${GREEN}✓ Feature-auth worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Feature-auth worktree may already exist${NC}\n"
@@ -135,8 +135,8 @@ cd ../..
 
 # Step 5: Create feature-payments worktree
 echo -e "${BLUE}Step 5: Creating 'feature-payments' worktree with different env${NC}"
-echo "Command: dual create feature-payments"
-if dual create feature-payments 2>/dev/null; then
+echo "Command: dual --service api create feature-payments"
+if dual --service api create feature-payments 2>/dev/null; then
     echo -e "${GREEN}✓ Feature-payments worktree created${NC}\n"
 else
     echo -e "${YELLOW}⚠ Feature-payments worktree may already exist${NC}\n"
