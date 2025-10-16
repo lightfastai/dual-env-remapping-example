@@ -144,3 +144,9 @@ vite.config.ts.timestamp-*
 # This example shows the full structure including generated worktrees
 .dual/registry.json
 .dual/registry.json.lock
+
+# Local dual registry and context data
+.dual/.local/
+
+# Worktrees directory
+worktrees/

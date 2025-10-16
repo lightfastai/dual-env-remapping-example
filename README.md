@@ -232,6 +232,91 @@ This ensures:
 2. Base values are used as fallbacks
 3. Your app works even if no overrides are set
 
+## Full Dotenv Compatibility
+
+Dual now uses the industry-standard `godotenv` library, providing full compatibility with Node.js dotenv features:
+
+### Multiline Values
+```bash
+# SSL certificates and keys
+SSL_CERT="-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKLdQVPy90WjMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+-----END CERTIFICATE-----"
+
+# SQL queries
+QUERY="SELECT * FROM users
+WHERE active = true
+ORDER BY created_at"
+```
+
+### Variable Expansion
+```bash
+# Reference other variables
+BASE_URL=http://localhost:3000
+API_URL=${BASE_URL}/api    # Expands to: http://localhost:3000/api
+WS_URL=$BASE_URL/ws        # Also expands with $ syntax
+
+# Nested expansion
+APP_NAME=MyApp
+VERSION=1.0.0
+FULL_NAME=${APP_NAME}-${VERSION}  # Expands to: MyApp-1.0.0
+```
+
+### Escape Sequences (in double quotes)
+```bash
+# Newlines
+MESSAGE="Line 1\nLine 2\nLine 3"
+
+# Windows paths (backslash escaping)
+PATH="C:\\Program Files\\MyApp"
+
+# Embedded quotes
+JSON="{\"key\": \"value\"}"
+```
+
+### Inline Comments
+```bash
+# Comments after values are now stripped
+PORT=3000 # Application port
+HOST=localhost # Development host
+```
+
+### Quote Behavior
+```bash
+# Double quotes: expansion and escapes processed
+EXPAND="${BASE_URL}/api"      # Variable expanded
+ESCAPED="Hello\nWorld"         # Newline processed
+
+# Single quotes: literal values (no processing)
+NO_EXPAND='${BASE_URL}/api'   # Literal: ${BASE_URL}/api
+NO_ESCAPE='Hello\nWorld'       # Literal: Hello\nWorld
+```
+
+### Migration from Old Parser
+
+If you have existing .env files that relied on the old parser behavior:
+
+1. **Literal ${VAR}**: Use single quotes instead of double
+   ```bash
+   # Old: API_TEMPLATE="${BASE_URL}/api"  # Was literal
+   # New: API_TEMPLATE='${BASE_URL}/api'  # Now literal
+   ```
+
+2. **Literal \n**: Use single quotes or escape the backslash
+   ```bash
+   # Old: MESSAGE="Hello\nWorld"    # Was literal \n
+   # New: MESSAGE='Hello\nWorld'    # Keep literal
+   # Or:  MESSAGE="Hello\\nWorld"   # Escape the backslash
+   ```
+
+3. **Inline comments**: Now properly stripped
+   ```bash
+   # Old: PORT=3000 # comment    # Value was "3000 # comment"
+   # New: PORT=3000 # comment    # Value is "3000"
+   ```
+
+See `example-complex.env` for comprehensive examples of all supported features.
+
 ## Key Concepts
 
 ### Context Isolation
