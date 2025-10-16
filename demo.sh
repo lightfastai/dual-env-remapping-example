@@ -29,6 +29,10 @@ done
 echo -e "${BLUE}================================${NC}"
 echo -e "${BLUE}Dual Environment Remapping Demo${NC}"
 echo -e "${BLUE}================================${NC}\n"
+echo -e "${YELLOW}Note: This demo shows the two-root architecture where:${NC}"
+echo -e "${YELLOW}  - Environment overrides are stored in the parent repo${NC}"
+echo -e "${YELLOW}  - All worktrees SHARE the same overrides${NC}"
+echo -e "${YELLOW}  - Use hooks for per-worktree isolation if needed${NC}\n"
 
 # Check if dual is installed
 if ! command -v dual &> /dev/null; then
@@ -173,35 +177,29 @@ fi
 echo ""
 
 # Step 7: Display environment files
-echo -e "${BLUE}Step 7: Environment Files for Each Context${NC}\n"
+echo -e "${BLUE}Step 7: Environment Files (Stored in Parent Repo)${NC}\n"
+echo -e "${YELLOW}Note: Environment overrides are in the PARENT REPO, not in worktrees${NC}"
+echo -e "${YELLOW}Location: .dual/.local/service/<service>/.env${NC}\n"
 
-echo -e "${YELLOW}=== Dev Context (API Service) ===${NC}"
-if [ -f worktrees/dev/.dual/.local/service/api/.env ]; then
-    cat worktrees/dev/.dual/.local/service/api/.env
+echo -e "${YELLOW}=== API Service Overrides (Shared by ALL worktrees) ===${NC}"
+if [ -f .dual/.local/service/api/.env ]; then
+    cat .dual/.local/service/api/.env
 else
     echo "(No env file yet)"
 fi
 echo ""
 
-echo -e "${YELLOW}=== Dev Context (Web Service) ===${NC}"
-if [ -f worktrees/dev/.dual/.local/service/web/.env ]; then
-    cat worktrees/dev/.dual/.local/service/web/.env
+echo -e "${YELLOW}=== Web Service Overrides (Shared by ALL worktrees) ===${NC}"
+if [ -f .dual/.local/service/web/.env ]; then
+    cat .dual/.local/service/web/.env
 else
     echo "(No env file yet)"
 fi
 echo ""
 
-echo -e "${YELLOW}=== Feature-Auth Context (API Service) ===${NC}"
-if [ -f worktrees/feature-auth/.dual/.local/service/api/.env ]; then
-    cat worktrees/feature-auth/.dual/.local/service/api/.env
-else
-    echo "(No env file yet)"
-fi
-echo ""
-
-echo -e "${YELLOW}=== Feature-Payments Context (API Service) ===${NC}"
-if [ -f worktrees/feature-payments/.dual/.local/service/api/.env ]; then
-    cat worktrees/feature-payments/.dual/.local/service/api/.env
+echo -e "${YELLOW}=== Worker Service Overrides (Shared by ALL worktrees) ===${NC}"
+if [ -f .dual/.local/service/worker/.env ]; then
+    cat .dual/.local/service/worker/.env
 else
     echo "(No env file yet)"
 fi
@@ -229,12 +227,15 @@ echo ""
 
 # Step 9: Verification
 echo -e "${BLUE}Step 9: Verification${NC}"
-echo "Each worktree has its own isolated environment:"
+echo "Two-root architecture verification:"
 echo ""
-echo -e "${GREEN}✓ Separate .dual/.local/service/ directories per worktree${NC}"
-echo -e "${GREEN}✓ Each service has its own .env file${NC}"
-echo -e "${GREEN}✓ Variables differ between worktrees (isolation verified)${NC}"
-echo -e "${GREEN}✓ Base port assignments are unique per context${NC}"
+echo -e "${GREEN}✓ Environment overrides stored in parent repo (.dual/.local/service/)${NC}"
+echo -e "${GREEN}✓ Each service has its own .env file (shared by all worktrees)${NC}"
+echo -e "${GREEN}✓ Registry is shared in parent repo (.dual/.local/registry.json)${NC}"
+echo -e "${GREEN}✓ Worktrees contain only service code (via git worktree)${NC}"
+echo ""
+echo -e "${YELLOW}⚠ Important: Environment overrides are SHARED across all worktrees${NC}"
+echo -e "${YELLOW}  For per-worktree isolation, use hooks with context-specific values${NC}"
 echo ""
 
 # Optional: Start servers
@@ -275,16 +276,22 @@ echo -e "${GREEN}================================${NC}\n"
 
 echo "What was demonstrated:"
 echo "1. Created three worktrees (dev, feature-auth, feature-payments)"
-echo "2. Set global and service-specific environment variables"
-echo "3. Each worktree has isolated .dual/.local/service/ directories"
-echo "4. Each service loads from both service-specific and base env files"
-echo "5. Port assignments are automatic and unique per context"
+echo "2. Set environment variables (stored in parent repo's .dual/)"
+echo "3. Two-root architecture: parent repo stores config, worktrees have code"
+echo "4. All worktrees SHARE the same environment overrides"
+echo "5. Use 'dual run' to inject environment from all layers"
+echo ""
+echo "Key Architecture Points:"
+echo "- Environment overrides: <parent-repo>/.dual/.local/service/<service>/.env"
+echo "- Registry: <parent-repo>/.dual/.local/registry.json"
+echo "- Service code: worktrees/<name>/apps/<service>/"
+echo "- Overrides are SHARED by all worktrees (not isolated per worktree)"
 echo ""
 echo "Next steps:"
-echo "- Explore the worktrees/ directory to see the generated structure"
-echo "- Check .dual/.local/service/*/.env files to see the remapped variables"
-echo "- Try starting a service: cd worktrees/dev/apps/api && dual npm start"
-echo "- Read the README.md for more detailed usage examples"
+echo "- Check .dual/.local/service/*/.env files in PARENT REPO"
+echo "- Try starting a service: cd worktrees/dev/apps/api && dual run npm start"
+echo "- Explore how hook scripts can provide per-worktree isolation"
+echo "- Read the README.md for detailed architecture explanation"
 echo ""
 
 # Cleanup if requested

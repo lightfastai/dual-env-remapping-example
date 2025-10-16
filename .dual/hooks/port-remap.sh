@@ -1,15 +1,16 @@
 #!/bin/bash
 
-# port-remap.sh - Automatically remap service PORTs when worktree is created
+# port-remap.sh - Example hook for setting context-specific environment variables
 #
-# This hook runs on postWorktreeCreate and outputs environment variable overrides
-# in the format dual expects:
-#   - GLOBAL:KEY=VALUE for global overrides (all services)
-#   - service:KEY=VALUE for service-specific overrides
+# This hook runs on postWorktreeCreate and demonstrates how to set different
+# environment values based on the context name.
 #
-# dual will parse these outputs and:
-#   1. Store them in the registry (.dual/registry.json)
-#   2. Generate service-local .env files (.dual/.local/service/<service>/.env)
+# IMPORTANT: Environment overrides are stored in the PARENT REPO at:
+#   <parent-repo>/.dual/.local/service/<service>/.env
+#
+# This means all worktrees SHARE the same overrides. If you need per-worktree
+# isolation, you can use this hook to set context-specific values using the
+# DUAL_CONTEXT_NAME variable.
 
 set -e
 
@@ -19,37 +20,58 @@ if [ "$DUAL_EVENT" != "postWorktreeCreate" ]; then
   exit 1
 fi
 
-echo "[port-remap] Remapping PORTs for context: $DUAL_CONTEXT_NAME" >&2
+echo "[port-remap] Setting up environment for context: $DUAL_CONTEXT_NAME" >&2
 echo "[port-remap] Worktree path: $DUAL_CONTEXT_PATH" >&2
 echo "[port-remap] Project root: $DUAL_PROJECT_ROOT" >&2
 
-# Remap offset - add 100 to each base port
-REMAP_OFFSET=100
+# Example: Set a database URL that includes the context name
+# This creates isolation even though the overrides are shared
+cd "$DUAL_PROJECT_ROOT"
 
-echo "[port-remap] Using remap offset: +$REMAP_OFFSET" >&2
+echo "[port-remap] Setting DATABASE_URL with context name..." >&2
+dual env set DATABASE_URL "postgres://localhost/${DUAL_CONTEXT_NAME}_db"
 
-# Remap each service's PORT (hardcoded base ports)
-# Output to stdout in the format: service:PORT=value
-# These will be captured by dual and written to the registry
+echo "[port-remap] Setting DEBUG flag..." >&2
+dual env set DEBUG "true"
 
-# api: 4101 -> 4201
-API_PORT=$((4101 + REMAP_OFFSET))
-echo "[port-remap]   api: PORT 4101 → $API_PORT" >&2
-echo "api:PORT=$API_PORT"
+# Example: Set service-specific ports based on context
+# You could calculate ports based on context name hash or use sequential assignment
+echo "[port-remap] Setting service-specific PORTs..." >&2
 
-# web: 4102 -> 4202
-WEB_PORT=$((4102 + REMAP_OFFSET))
-echo "[port-remap]   web: PORT 4102 → $WEB_PORT" >&2
-echo "web:PORT=$WEB_PORT"
+# Simple approach: use a base port offset
+case "$DUAL_CONTEXT_NAME" in
+  "dev")
+    API_PORT=4101
+    WEB_PORT=4102
+    WORKER_PORT=4103
+    ;;
+  "feature-auth")
+    API_PORT=4201
+    WEB_PORT=4202
+    WORKER_PORT=4203
+    ;;
+  "feature-payments")
+    API_PORT=4301
+    WEB_PORT=4302
+    WORKER_PORT=4303
+    ;;
+  *)
+    # Default: use hash of context name for deterministic port assignment
+    # This ensures consistent ports for the same context name
+    HASH=$(echo -n "$DUAL_CONTEXT_NAME" | md5sum | cut -c1-4)
+    BASE_OFFSET=$((0x$HASH % 1000 * 100))
+    API_PORT=$((4000 + BASE_OFFSET + 1))
+    WEB_PORT=$((4000 + BASE_OFFSET + 2))
+    WORKER_PORT=$((4000 + BASE_OFFSET + 3))
+    ;;
+esac
 
-# worker: 4103 -> 4203
-WORKER_PORT=$((4103 + REMAP_OFFSET))
-echo "[port-remap]   worker: PORT 4103 → $WORKER_PORT" >&2
-echo "worker:PORT=$WORKER_PORT"
+dual env set --service api PORT "$API_PORT"
+dual env set --service web PORT "$WEB_PORT"
+dual env set --service worker PORT "$WORKER_PORT"
 
-# You can also set global environment variables:
-# echo "GLOBAL:DATABASE_URL=postgres://localhost/mydb_${DUAL_CONTEXT_NAME}"
-# echo "GLOBAL:DEBUG=true"
-
-echo "[port-remap] PORT remapping complete!" >&2
-echo "[port-remap] dual will write these overrides to the registry and generate .env files" >&2
+echo "[port-remap] Environment setup complete!" >&2
+echo "[port-remap]   DATABASE_URL: postgres://localhost/${DUAL_CONTEXT_NAME}_db" >&2
+echo "[port-remap]   api PORT: $API_PORT" >&2
+echo "[port-remap]   web PORT: $WEB_PORT" >&2
+echo "[port-remap]   worker PORT: $WORKER_PORT" >&2

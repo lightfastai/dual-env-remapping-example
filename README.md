@@ -1,54 +1,78 @@
 # Dual Environment Remapping Example
 
-This example demonstrates how `dual` manages environment variables across multiple git worktrees, providing complete isolation between different development contexts.
+This example demonstrates how `dual` manages environment variables across multiple git worktrees using a two-root architecture where environment overrides are shared across all worktrees.
 
 ## What This Example Demonstrates
 
-- **Automatic Environment Remapping**: Each worktree gets its own isolated environment variables
-- **Service-Specific Overrides**: Set different env vars for each service within a context
-- **Environment Cascading**: Services load vars from both base and service-specific files
-- **Port Isolation**: Each worktree gets unique ports alongside unique environments
-- **Built-in Support**: No custom hooks needed - dual handles remapping automatically
+- **Two-Root Architecture**: Environment overrides stored in parent repo, shared by all worktrees
+- **Service-Specific Overrides**: Set different env vars for each service using `dual env set --service`
+- **Environment Cascading**: Services load vars from base, service-specific, and override files
+- **Hook-Based Customization**: Use hooks to set context-specific values (e.g., unique ports, database names)
+- **Shared Environment Model**: All worktrees see the same environment overrides from parent repo
+- **Built-in Environment Injection**: Use `dual run` to automatically merge all environment layers
 
 ## How Environment Remapping Works
+
+### Two-Root Architecture
+
+Dual uses a **two-root architecture** to manage environments across worktrees:
+
+1. **Parent Repository Root**: Stores shared configuration and environment overrides
+   - Location: `<parent-repo>/.dual/.local/service/<service>/.env`
+   - Contains: Environment variable overrides set via `dual env set`
+   - Shared by: ALL worktrees of the same repository
+
+2. **Worktree Root**: Contains the actual service code and base environment
+   - Location: `worktrees/dev/apps/<service>/`
+   - Contains: Service code, `.env.base` (if configured)
+   - Unique to: Each worktree
 
 ### File Structure
 
 When you create a worktree and set environment variables, dual creates this structure:
 
 ```
-worktrees/dev/
+examples/env-remapping/              # Parent repo (main repository)
 ├── .dual/
 │   └── .local/
 │       └── service/
-│           ├── api/.env      # Service-specific overrides for API
-│           ├── web/.env      # Service-specific overrides for Web
-│           └── worker/.env   # Service-specific overrides for Worker
-├── apps/
-│   ├── api/
-│   ├── web/
-│   └── worker/
-└── .env.base                 # Shared base environment
+│           ├── api/.env      # Environment overrides - SHARED by all worktrees
+│           ├── web/.env      # Environment overrides - SHARED by all worktrees
+│           └── worker/.env   # Environment overrides - SHARED by all worktrees
+├── .env.base                 # Base environment (optional)
+└── worktrees/
+    └── dev/                  # Worktree (references parent's overrides)
+        ├── apps/
+        │   ├── api/          # Service code
+        │   ├── web/
+        │   └── worker/
+        └── .env.base         # Same as parent (via worktree)
 ```
+
+**Key Point**: Environment overrides are stored in the **parent repo**, NOT in each worktree. All worktrees share the same overrides.
 
 ### Environment Priority
 
-When a service loads environment variables, it follows this cascade:
+When using `dual run`, environment variables are loaded in this order:
 
-1. **Service-specific env** (`.dual/.local/service/{service}/.env`) - Highest priority
-2. **Base env** (`.env.base`) - Fallback for unset variables
+1. **Base environment** (`.env.base`) - Lowest priority
+2. **Service-specific env** (`apps/<service>/.env`) - Medium priority
+3. **Context overrides** (`<parent-repo>/.dual/.local/service/<service>/.env`) - Highest priority
 
 This allows you to:
-- Set common defaults in `.env.base`
-- Override specific vars per-context using `dual env set`
-- Override specific vars per-service using `dual env set --service`
+- Set common defaults in `.env.base` (shared across all services)
+- Set service defaults in `apps/<service>/.env` (per-service defaults)
+- Override specific vars using `dual env set` (stored in parent repo, shared by all worktrees)
+- Override per-service using `dual env set --service <service>` (also shared by all worktrees)
 
 ### The Remapping Process
 
 1. You run: `dual env set DATABASE_URL "postgres://localhost/dev_db"`
-2. Dual writes to: `worktrees/dev/.dual/.local/service/{detected-service}/.env`
-3. Your app loads: Both `.dual/.local/service/{service}/.env` and `.env.base`
-4. Result: App sees `DATABASE_URL=postgres://localhost/dev_db` (from service-specific) and other vars from base
+2. Dual writes to: `<parent-repo>/.dual/.local/service/<service>/.env` (NOT in the worktree)
+3. Your app loads via `dual run`: Merges `.env.base`, `apps/<service>/.env`, and overrides
+4. Result: App sees `DATABASE_URL=postgres://localhost/dev_db` (from override) and other vars from base/service files
+
+**Important**: Since overrides are stored in the parent repo, they are **shared across all worktrees**. If you want truly isolated environments per worktree, you'll need to use different approaches (e.g., hook scripts that detect the current branch/context)
 
 ## Quick Start
 
@@ -83,10 +107,12 @@ npm install
 The demo script will:
 1. Initialize git repository
 2. Create multiple worktrees (dev, feature-auth, feature-payments)
-3. Set environment variables for each context
-4. Show the generated `.dual/.local/service/` structure
-5. Display environment files for each service
+3. Set environment variables (stored in parent repo's `.dual/.local/service/`)
+4. Show the generated environment structure
+5. Display environment files from the parent repository
 6. Optionally start servers to demonstrate they work
+
+**Note**: This example demonstrates the shared environment architecture - all worktrees use the same environment overrides from the parent repo.
 
 ## Manual Usage
 
@@ -124,27 +150,34 @@ dual env set --service web REDIS_URL "redis://localhost:6379/1"
 ### Step 4: Verify Environment Files
 
 ```bash
-# Check what was generated
+# Check what was generated in the PARENT REPO (not in the worktree)
+# Navigate back to the parent repo to see the override files
+cd ../..  # Back to parent repo
 cat .dual/.local/service/api/.env
 cat .dual/.local/service/web/.env
 cat .dual/.local/service/worker/.env
+
+# These files are shared by ALL worktrees
 ```
 
 ### Step 5: Start Services
 
 ```bash
 # Start API service (from worktrees/dev/)
-cd apps/api
-dual npm start
-# API will load vars from ../../.dual/.local/service/api/.env and ../../.env.base
+cd worktrees/dev/apps/api
+dual run npm start
+# dual run injects environment from:
+#   1. <parent-repo>/.env.base
+#   2. <parent-repo>/apps/api/.env
+#   3. <parent-repo>/.dual/.local/service/api/.env
 
 # In another terminal, start web service
 cd worktrees/dev/apps/web
-dual npm start
+dual run npm start
 
 # In another terminal, start worker service
 cd worktrees/dev/apps/worker
-dual npm start
+dual run npm start
 ```
 
 ### Step 6: Test the Services
@@ -171,53 +204,73 @@ Each response will show:
 After running the demo, you'll have:
 
 ```
-examples/env-remapping/
-├── dual.config.yml           # Dual configuration
-├── .env.base                 # Base environment variables
+examples/env-remapping/              # Parent repository
+├── dual.config.yml                  # Dual configuration
+├── .env.base                        # Base environment variables
+├── .dual/
+│   └── .local/
+│       ├── registry.json            # Shared registry for all worktrees
+│       └── service/
+│           ├── api/.env             # Environment overrides - SHARED by all worktrees
+│           ├── web/.env             # Environment overrides - SHARED by all worktrees
+│           └── worker/.env          # Environment overrides - SHARED by all worktrees
 ├── apps/
-│   ├── api/                  # API service
+│   ├── api/                         # API service
 │   │   ├── package.json
 │   │   └── server.js
-│   ├── web/                  # Web service
+│   ├── web/                         # Web service
 │   │   ├── package.json
 │   │   └── server.js
-│   └── worker/               # Worker service
+│   └── worker/                      # Worker service
 │       ├── package.json
 │       └── server.js
 └── worktrees/
-    ├── dev/
-    │   ├── .dual/
-    │   │   └── .local/
-    │   │       └── service/
-    │   │           ├── api/.env
-    │   │           ├── web/.env
-    │   │           └── worker/.env
-    │   └── apps/             # Service code (linked)
-    ├── feature-auth/
-    │   ├── .dual/
-    │   │   └── .local/
-    │   │       └── service/
-    │   │           ├── api/.env      # Different values!
-    │   │           ├── web/.env
-    │   │           └── worker/.env
-    │   └── apps/
-    └── feature-payments/
-        ├── .dual/
-        │   └── .local/
-        │       └── service/
-        │           ├── api/.env      # Different values!
-        │           ├── web/.env
-        │           └── worker/.env
-        └── apps/
+    ├── dev/                         # Worktree (uses parent's .dual/...)
+    │   ├── apps/                    # Service code (via git worktree)
+    │   │   ├── api/
+    │   │   ├── web/
+    │   │   └── worker/
+    │   └── .env.base                # Same file as parent (via git worktree)
+    ├── feature-auth/                # Another worktree
+    │   ├── apps/
+    │   └── .env.base
+    └── feature-payments/            # Another worktree
+        ├── apps/
+        └── .env.base
 ```
 
-## Using Generated .env Files in Your Services
+**Key Architecture Points**:
+- Environment overrides are in the **parent repo** at `.dual/.local/service/`
+- **All worktrees share the same overrides** (no per-worktree isolation)
+- Registry is also shared in the parent repo at `.dual/.local/registry.json`
+- Worktrees only contain the actual service code (via git worktree mechanism)
 
-The Node.js servers in this example show the recommended pattern:
+## Using Environment Variables in Your Services
+
+### Recommended Approach: Use `dual run`
+
+The **recommended way** to run services with dual is using `dual run`:
+
+```bash
+cd apps/api
+dual run npm start
+```
+
+When you use `dual run`, dual automatically injects the environment from all three layers:
+1. Base environment (`.env.base`)
+2. Service-specific environment (`apps/api/.env`)
+3. Context-specific overrides (`.dual/.local/service/api/.env` from parent repo)
+
+Your application receives the merged environment directly via `process.env` - no need to manually load `.env` files.
+
+### Alternative: Manual .env Loading (Not Recommended)
+
+If you need to load `.env` files manually (not using `dual run`), you would need to:
 
 ```javascript
 const path = require('path');
-const serviceEnvPath = path.join(__dirname, '../../.dual/.local/service/api/.env');
+// Note: These paths must point to the PARENT REPO, not the worktree
+const serviceEnvPath = path.join(__dirname, '../../../../.dual/.local/service/api/.env');
 const baseEnvPath = path.join(__dirname, '../../.env.base');
 
 // Load service-specific env first (higher priority)
@@ -227,10 +280,12 @@ require('dotenv').config({ path: serviceEnvPath });
 require('dotenv').config({ path: baseEnvPath });
 ```
 
-This ensures:
-1. Service-specific overrides take precedence
-2. Base values are used as fallbacks
-3. Your app works even if no overrides are set
+However, this approach is **not recommended** because:
+- It requires complex relative paths to reach the parent repo
+- You lose the benefit of dual's automatic environment merging
+- It's harder to maintain and debug
+
+**Always prefer `dual run` for running services.**
 
 ## Full Dotenv Compatibility
 
@@ -319,15 +374,16 @@ See `example-complex.env` for comprehensive examples of all supported features.
 
 ## Key Concepts
 
-### Context Isolation
+### Shared Environment Architecture
 
-Each worktree is a separate context with its own:
-- Git branch
-- Port assignments
-- Environment variables
-- Service configurations
+After the two-root architecture fix (Issue #85), dual now uses a **shared environment** model:
 
-Changes in one worktree don't affect others.
+- **Git branch**: Each worktree has its own branch (isolated)
+- **Environment overrides**: Stored in parent repo's `.dual/.local/service/` (SHARED across all worktrees)
+- **Registry**: Stored in parent repo's `.dual/.local/registry.json` (SHARED across all worktrees)
+- **Service code**: Each worktree has its own copy (via git worktree mechanism)
+
+**Important**: Changes to environment overrides (via `dual env set`) affect ALL worktrees because they're stored in the parent repository. If you need per-worktree isolation, consider using hook scripts that set different values based on the current context/branch.
 
 ### Service Detection
 
@@ -459,60 +515,69 @@ dual env set --service worker STRIPE_KEY "sk_test_worker_..."
 
 ## Architecture Notes
 
-### Why .dual/.local/service/?
+### Why Parent Repo Storage?
 
-This structure ensures:
-- **Worktree isolation**: Each worktree has its own `.dual/.local/` directory
-- **Service isolation**: Each service has its own `.env` file
+Environment overrides are stored in the **parent repository's** `.dual/.local/service/` directory (not in worktrees) because:
+
+- **Shared Registry**: Git worktrees share the parent repo's `.git` folder, so dual stores all state in the parent
+- **Consistency**: All worktrees see the same registry and environment configuration
+- **Simplicity**: One source of truth for environment overrides
 - **Git-friendly**: The `.dual/` directory is in `.gitignore` (local state only)
-- **Vercel-proof**: Won't conflict with deployment tools that manage their own `.env` files
 
-### Why Not Write Directly to .env?
+### Why Not Per-Worktree Isolation?
 
-Writing to `.env` files in the project root causes problems:
-- Deployment tools (like Vercel) might overwrite them
-- Changes could accidentally get committed
-- No clear separation between base and override values
+The original design had per-worktree environment files, but this caused issues:
+- Worktrees couldn't properly resolve their own `.dual/.local/` directories
+- Registry became fragmented across worktrees
+- Environment management was inconsistent
 
-The `.dual/.local/service/` approach keeps overrides separate and explicit.
+The two-root architecture (Issue #85) fixed these issues by centralizing storage in the parent repo.
 
-### No Hooks Required
+### Achieving Per-Worktree Isolation
 
-Unlike some multi-environment tools, dual's remapping is built-in:
-- No pre-command hooks needed
+If you need different environment values per worktree, use hook scripts:
+
+```bash
+#!/bin/bash
+# .dual/hooks/setup-env.sh
+# Set different DATABASE_URL based on context name
+dual env set DATABASE_URL "postgres://localhost/${DUAL_CONTEXT_NAME}_db"
+```
+
+This way, each worktree gets different values even though they're stored in the shared location.
+
+### Using `dual run`
+
+Dual's environment injection is built into `dual run`:
+- No manual .env file loading needed
 - No shell integration required
-- Just use `dual` before your commands
+- Just use `dual run <command>` to get the merged environment
 
 ## Real-World Example
 
-Here's a typical workflow for a team member:
+Here's a typical workflow demonstrating the shared environment architecture:
 
 ```bash
 # Start new feature
 dual create feature-search
 cd worktrees/feature-search
 
-# Use local test database
+# Set environment overrides (stored in parent repo, affects ALL worktrees)
 dual env set DATABASE_URL "postgres://localhost/search_test"
-
-# Enable debug logging
 dual env set DEBUG "true"
 dual env set LOG_LEVEL "debug"
-
-# Different API key for testing
 dual env set --service api ELASTICSEARCH_KEY "test_key_123"
 
 # Start development
 cd apps/api
-dual npm run dev        # Runs with search_test DB and debug logging
+dual run npm start        # Runs with overrides from parent repo
 
-cd ../web
-dual npm run dev        # Also uses search_test DB
-
-# Meanwhile, your main dev worktree is unaffected
-cd ../../dev/apps/api
-dual npm run dev        # Still uses dev_db and production logging
+# Note: If you switch to another worktree, it will see the SAME overrides
+cd ../../../dev/apps/api
+dual run npm start        # Uses the SAME DATABASE_URL (search_test) because it's shared!
 ```
+
+**Key Point**: Because environment overrides are stored in the parent repo, changing them in one worktree affects ALL worktrees. For true per-worktree isolation, use hook scripts that set context-specific values based on `$DUAL_CONTEXT_NAME`.
 
 ## Cleanup
 

@@ -1,8 +1,12 @@
 // API Server - Environment variables are injected by `dual run`
-// No need to load .env files manually - dual handles the entire env cascade:
-//   1. Base environment (.env.base)
-//   2. Service-specific environment (apps/api/.env)
-//   3. Context-specific overrides (.dual/.local/service/api/.env)
+//
+// When you use `dual run npm start`, dual automatically merges environment from:
+//   1. Base environment (.env.base) - Lowest priority
+//   2. Service-specific environment (apps/api/.env) - Medium priority
+//   3. Context-specific overrides (<parent-repo>/.dual/.local/service/api/.env) - Highest priority
+//
+// The overrides are stored in the PARENT REPOSITORY, not in the worktree.
+// This means ALL worktrees share the same environment overrides.
 
 const express = require('express');
 const app = express();
